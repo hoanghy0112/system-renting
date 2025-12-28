@@ -1,0 +1,59 @@
+# DistributedCompute Agent Configuration
+# Copy this file to agent.yaml and update values
+
+# Backend connection settings
+backend:
+  # WebSocket URL for the fleet gateway
+  url: "wss://api.yourplatform.com/fleet"
+  # API key for authentication (or use AGENT_API_KEY env var)
+  api_key: "${AGENT_API_KEY}"
+  # Reconnection settings
+  reconnect_delay_seconds: 5
+  max_reconnect_attempts: 0  # 0 = infinite
+
+# Node identification
+node:
+  # Node ID (assigned after registration, or use NODE_ID env var)
+  id: "${NODE_ID}"
+  # Heartbeat interval in seconds
+  heartbeat_interval_seconds: 5
+
+# FRP tunneling configuration
+frp:
+  # FRP server address
+  server_addr: "proxy.yourplatform.com"
+  # FRP server port
+  server_port: 7000
+  # Authentication token (or use FRP_TOKEN env var)
+  token: "${FRP_TOKEN}"
+  # Path to frpc binary (optional, uses bundled or PATH if not set)
+  frpc_path: null
+
+# Docker settings
+docker:
+  # Allowed container images (wildcards supported)
+  allowed_images:
+    - "pytorch/pytorch:*"
+    - "tensorflow/tensorflow:*"
+    - "jupyter/scipy-notebook:*"
+    - "nvidia/cuda:*"
+  # Default container settings
+  defaults:
+    network_mode: "bridge"
+    restart_policy: "no"
+  # Cleanup stopped containers after this many seconds
+  cleanup_after_seconds: 300
+
+# Resource limits
+resources:
+  # Maximum concurrent rentals (0 = unlimited based on hardware)
+  max_concurrent_rentals: 0
+  # Reserve some resources for host system
+  reserved_ram_gb: 2
+  reserved_cpu_cores: 1
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "json"  # json or text
+  file: null  # Optional log file path

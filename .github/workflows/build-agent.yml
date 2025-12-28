@@ -1,0 +1,113 @@
+name: Build Agent
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: false
+        default: 'dev'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux
+            arch: x64
+          - os: windows-latest
+            platform: windows
+            arch: x64
+          - os: macos-latest
+            platform: macos
+            arch: x64
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install dependencies
+        working-directory: apps/agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Build with PyInstaller
+        working-directory: apps/agent
+        run: pyinstaller agent.spec
+
+      - name: Rename artifact (Unix)
+        if: matrix.platform != 'windows'
+        working-directory: apps/agent
+        run: |
+          cd dist
+          if [ "${{ matrix.platform }}" == "macos" ] && [ "${{ matrix.arch }}" == "arm64" ]; then
+            mv distributed-agent distributed-agent-${{ matrix.platform }}-arm64
+          else
+            mv distributed-agent distributed-agent-${{ matrix.platform }}-${{ matrix.arch }}
+          fi
+
+      - name: Rename artifact (Windows)
+        if: matrix.platform == 'windows'
+        working-directory: apps/agent
+        shell: pwsh
+        run: |
+          cd dist
+          Rename-Item distributed-agent.exe distributed-agent-windows-x64.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: distributed-agent-${{ matrix.platform }}-${{ matrix.arch }}
+          path: apps/agent/dist/distributed-agent-*
+          retention-days: 30
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          generate_release_notes: true
