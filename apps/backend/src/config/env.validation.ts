@@ -29,6 +29,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),
   CORS_ORIGIN: z.string().optional(),
+
+  // Logging
+  LOG_RETENTION_DAYS: z.coerce.number().default(30),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -37,12 +40,12 @@ export function validateEnv(): EnvConfig {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error('❌ Invalid environment variables:');
-    console.error(result.error.format());
+    process.stderr.write('❌ Invalid environment variables:\n');
+    process.stderr.write(JSON.stringify(result.error.format(), null, 2) + '\n');
     throw new Error('Environment validation failed');
   }
 
-  console.log('✅ Environment variables validated successfully');
+  process.stdout.write('✅ Environment variables validated successfully\n');
   return result.data;
 }
 

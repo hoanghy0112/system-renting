@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
@@ -10,6 +10,7 @@ async function bootstrap() {
   validateEnv();
 
   const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
 
   // Global prefix for all routes
   app.setGlobalPrefix('api');
@@ -66,9 +67,9 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
-  console.log(`🚀 Application is running on: http://localhost:${port}/api`);
-  console.log(`📚 Swagger documentation at: http://localhost:${port}/api/docs`);
-  console.log(`📊 WebSocket Gateway available at: ws://localhost:${port}/fleet`);
+  logger.log(`🚀 Application is running on: http://localhost:${port}/api`);
+  logger.log(`📚 Swagger documentation at: http://localhost:${port}/api/docs`);
+  logger.log(`📊 WebSocket Gateway available at: ws://localhost:${port}/fleet`);
 }
 
 bootstrap();

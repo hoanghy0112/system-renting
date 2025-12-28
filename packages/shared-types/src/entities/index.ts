@@ -2,6 +2,8 @@
 // Enums
 // ==========================================
 
+export * from './logging';
+
 export enum Role {
   RENT = 'RENT',
   LEASE = 'LEASE',
