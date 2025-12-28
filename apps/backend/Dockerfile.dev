@@ -1,0 +1,36 @@
+# ================================
+# Development Dockerfile
+# ================================
+FROM node:20-alpine
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@9.15.1 --activate
+
+WORKDIR /app
+
+# Copy workspace configuration
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY apps/backend/package.json ./apps/backend/
+COPY packages/shared-types/package.json ./packages/shared-types/
+
+# Install all dependencies
+RUN pnpm install
+
+# Copy source code
+COPY . .
+
+# Build shared-types
+RUN pnpm --filter @distributed-compute/shared-types build
+
+# Generate Prisma client
+RUN pnpm --filter backend db:generate
+
+WORKDIR /app/apps/backend
+
+EXPOSE 3000
+
+ENV NODE_ENV=development
+ENV PORT=3000
+
+# Start in watch mode
+CMD ["pnpm", "dev"]

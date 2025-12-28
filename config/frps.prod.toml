@@ -1,0 +1,31 @@
+# FRP Server Configuration - Production
+bindPort = 7000
+
+# Dashboard (disable in production or use secure credentials)
+webServer.addr = "0.0.0.0"
+webServer.port = 7500
+webServer.user = "${FRP_DASHBOARD_USER}"
+webServer.password = "${FRP_DASHBOARD_PASSWORD}"
+
+# Authentication
+auth.method = "token"
+auth.token = "${FRP_AUTH_TOKEN}"
+
+# Port range for dynamic tunnels
+allowPorts = [
+  { start = 10000, end = 10100 }
+]
+
+# TLS (optional, recommended for production)
+# tls.force = true
+# tls.certFile = "/etc/frp/server.crt"
+# tls.keyFile = "/etc/frp/server.key"
+
+# Logging
+log.to = "console"
+log.level = "warn"
+log.maxDays = 7
+
+# Connection limits
+transport.maxPoolCount = 10
+transport.tcpMux = true

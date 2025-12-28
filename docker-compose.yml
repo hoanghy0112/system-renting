@@ -1,0 +1,147 @@
+# ================================
+# DistributedCompute - Development Environment
+# ================================
+# Usage:
+#   Development: docker-compose up -d
+#   Production:  docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ================================
+
+services:
+  # ================================
+  # Backend API (NestJS)
+  # ================================
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile.dev
+    container_name: distributed-compute-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://dev:dev@postgres:5432/distributed_compute?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: dev-token-for-local-development
+      INFLUXDB_ORG: distributed-compute
+      INFLUXDB_BUCKET: metrics
+      FRP_SERVER_ADDR: frps
+      FRP_SERVER_PORT: 7000
+      FRP_AUTH_TOKEN: your-frp-secret-token
+      FRP_PORT_RANGE_START: 10000
+      FRP_PORT_RANGE_END: 10100
+    volumes:
+      # Mount source for hot reload (development only)
+      - ./apps/backend/src:/app/apps/backend/src:ro
+      - ./packages/shared-types/src:/app/packages/shared-types/src:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      influxdb:
+        condition: service_started
+    networks:
+      - distributed-compute-network
+    restart: unless-stopped
+
+  # ================================
+  # PostgreSQL Database
+  # ================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: distributed-compute-postgres
+    environment:
+      POSTGRES_DB: distributed_compute
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d distributed_compute"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - distributed-compute-network
+    restart: unless-stopped
+
+  # ================================
+  # InfluxDB (Time-Series Metrics)
+  # ================================
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: distributed-compute-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: adminpassword
+      DOCKER_INFLUXDB_INIT_ORG: distributed-compute
+      DOCKER_INFLUXDB_INIT_BUCKET: metrics
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: dev-token-for-local-development
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - distributed-compute-network
+    restart: unless-stopped
+
+  # ================================
+  # Redis (Cache & Sessions)
+  # ================================
+  redis:
+    image: redis:7-alpine
+    container_name: distributed-compute-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - distributed-compute-network
+    restart: unless-stopped
+
+  # ================================
+  # FRP Server (Tunnel Proxy)
+  # ================================
+  frps:
+    image: snowdreamtech/frps:latest
+    container_name: distributed-compute-frps
+    ports:
+      - "7000:7000"          # FRP server port
+      - "7500:7500"          # Dashboard port (admin:admin)
+      - "10000-10100:10000-10100"  # Port range for tunnels
+    volumes:
+      - ./config/frps.toml:/etc/frp/frps.toml:ro
+    command: ["-c", "/etc/frp/frps.toml"]
+    networks:
+      - distributed-compute-network
+    restart: unless-stopped
+
+# ================================
+# Volumes
+# ================================
+volumes:
+  postgres_data:
+    driver: local
+  influxdb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ================================
+# Networks
+# ================================
+networks:
+  distributed-compute-network:
+    driver: bridge

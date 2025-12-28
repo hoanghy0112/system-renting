@@ -1,0 +1,130 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// Enums
+// ==========================================
+
+enum Role {
+  RENT
+  LEASE
+  BOTH
+}
+
+enum NodeStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+  MAINTENANCE
+}
+
+enum RentalStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+// ==========================================
+// Models
+// ==========================================
+
+model User {
+  id           String        @id @default(uuid())
+  clerkId      String        @unique
+  email        String        @unique
+  role         Role          @default(BOTH)
+  balance      Decimal       @default(0) @db.Decimal(12, 4)
+  hostNodes    HostNode[]
+  rentals      Rental[]      @relation("RenterRentals")
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([clerkId])
+  @@index([email])
+}
+
+model HostNode {
+  id            String     @id @default(uuid())
+  ownerId       String
+  owner         User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  apiKey        String     @unique @default(uuid())
+  specs         Json       // NodeSpecs: GPUs, CPU, RAM, disk
+  pricingConfig Json       // PricingConfig: hourly rate, smart pricing
+  status        NodeStatus @default(OFFLINE)
+  locationData  Json?      // LocationData: country, city, coordinates
+  lastHeartbeat DateTime?
+  rentals       Rental[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([apiKey])
+}
+
+model Rental {
+  id             String       @id @default(uuid())
+  renterId       String
+  renter         User         @relation("RenterRentals", fields: [renterId], references: [id], onDelete: Cascade)
+  nodeId         String
+  node           HostNode     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  startTime      DateTime     @default(now())
+  endTime        DateTime?
+  costPerHour    Decimal      @db.Decimal(10, 4)
+  totalCost      Decimal?     @db.Decimal(12, 4)
+  containerId    String?
+  connectionInfo Json?        // ConnectionInfo: SSH host/port, Jupyter URL
+  image          String       // Docker image used
+  resourceLimits Json         // ResourceLimits: GPU indices, CPU, RAM
+  status         RentalStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([renterId])
+  @@index([nodeId])
+  @@index([status])
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Decimal         @db.Decimal(12, 4)
+  type        TransactionType
+  referenceId String?         // rental_id or external payment reference
+  description String?
+  createdAt   DateTime        @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PortAllocation {
+  id           String   @id @default(uuid())
+  port         Int      @unique
+  rentalId     String?
+  nodeId       String?
+  allocatedAt  DateTime @default(now())
+  releasedAt   DateTime?
+  isActive     Boolean  @default(true)
+
+  @@index([port])
+  @@index([isActive])
+}

@@ -1,0 +1,26 @@
+{
+  "name": "distributed-compute",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "db:push": "turbo run db:push --filter=backend",
+    "db:migrate": "turbo run db:migrate --filter=backend",
+    "db:generate": "turbo run db:generate --filter=backend",
+    "db:studio": "turbo run db:studio --filter=backend"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3"
+  },
+  "packageManager": "pnpm@9.15.1",
+  "engines": {
+    "node": ">=18"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
