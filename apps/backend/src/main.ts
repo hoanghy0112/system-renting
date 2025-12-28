@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { validateEnv } from './config/env.validation';
@@ -34,11 +35,41 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new GlobalExceptionFilter());
 
+  // Swagger/OpenAPI documentation
+  const config = new DocumentBuilder()
+    .setTitle('DistributedCompute API')
+    .setDescription(
+      'API for the DistributedCompute GPU/Compute rental marketplace. ' +
+      'Browse available nodes, create rentals, and manage billing.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Enter your Clerk JWT token',
+      },
+      'clerk-jwt',
+    )
+    .addTag('Marketplace', 'Browse and manage compute nodes')
+    .addTag('Billing', 'Rentals, transactions, and balance management')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
   console.log(`🚀 Application is running on: http://localhost:${port}/api`);
+  console.log(`📚 Swagger documentation at: http://localhost:${port}/api/docs`);
   console.log(`📊 WebSocket Gateway available at: ws://localhost:${port}/fleet`);
 }
 
 bootstrap();
+

@@ -169,35 +169,35 @@ export class MarketplaceService {
   }
 
   async getMarketplaceStats(): Promise<MarketplaceStatsResponse> {
-    const [totalNodes, availableNodes, priceStats, gpuCount] = await Promise.all([
+    const [totalNodes, availableNodes] = await Promise.all([
       this.prisma.hostNode.count(),
       this.prisma.hostNode.count({
         where: { status: NodeStatus.ONLINE },
       }),
-      this.prisma.hostNode.aggregate({
-        _avg: {
-          // Note: hourlyRate is stored in pricingConfig JSON
-        },
-      }),
-      // Count total GPUs (would need to aggregate from specs JSON)
-      Promise.resolve(0),
     ]);
 
     // Calculate average hourly rate from pricing configs
     const nodes = await this.prisma.hostNode.findMany({
-      select: { pricingConfig: true },
+      select: { pricingConfig: true, specs: true },
     });
     const rates = nodes
       .map((n) => (n.pricingConfig as any)?.hourlyRate)
-      .filter((r) => r != null);
+      .filter((r): r is number => r != null);
     const averageHourlyRate =
       rates.length > 0 ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
+
+    // Calculate total GPUs from specs
+    const totalGpus = nodes.reduce((sum, n) => {
+      const specs = n.specs as any;
+      const gpuCount = specs?.gpus?.reduce((gpuSum: number, gpu: any) => gpuSum + (gpu.count || 0), 0) || 0;
+      return sum + gpuCount;
+    }, 0);
 
     return {
       totalNodes,
       availableNodes,
       averageHourlyRate,
-      totalGpus: gpuCount,
+      totalGpus,
     };
   }
 
