@@ -1,0 +1,30 @@
+# ================================
+# Development Dockerfile for Frontend
+# ================================
+FROM node:20-alpine AS dev
+WORKDIR /app
+
+# Enable corepack for pnpm
+RUN corepack enable pnpm
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/frontend/package.json ./apps/frontend/
+COPY packages/shared-types/package.json ./packages/shared-types/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source files
+COPY . .
+
+# Build shared-types
+RUN pnpm --filter @distributed-compute/shared-types build
+
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3001
+
+EXPOSE 3001
+
+# Start dev server
+CMD ["pnpm", "--filter", "frontend", "dev"]

@@ -48,6 +48,31 @@ services:
     restart: unless-stopped
 
   # ================================
+  # Frontend (Next.js)
+  # ================================
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile.dev
+    container_name: distributed-compute-frontend
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: http://backend:3000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:-pk_test_placeholder}
+    volumes:
+      # Mount source for hot reload (development only)
+      - ./apps/frontend/src:/app/apps/frontend/src:ro
+      - ./packages/shared-types/src:/app/packages/shared-types/src:ro
+    depends_on:
+      - backend
+    networks:
+      - distributed-compute-network
+    restart: unless-stopped
+
+  # ================================
   # PostgreSQL Database
   # ================================
   postgres:
